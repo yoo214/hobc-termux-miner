@@ -148,14 +148,20 @@ build_miner() {
 
   log "Compile hobc-rxminer..."
   local cc="${CC:-cc}"
-  # Link pakai driver C++ (c++) supaya runtime C++ (libc++) ikut ke-link.
-  c++ -O2 -pthread \
+  # File .c HARUS dikompilasi sebagai C (bukan C++): di C++, calloc/memchr
+  # mengembalikan void* yang tidak bisa langsung jadi pointer bertipe
+  # (error di hobc-rxminer.c baris 440/441/455). Link tetap pakai driver
+  # C++ (c++) supaya runtime C++ (libc++) ikut ke-link.
+  "$cc" -O2 -pthread \
     -I"$rx_src/src" \
     $JANSSON_CFLAGS \
-    "$REPO_DIR/miners/hobc-rxminer/hobc-rxminer.c" \
+    -c "$REPO_DIR/miners/hobc-rxminer/hobc-rxminer.c" \
+    -o "$rx_build/hobc-rxminer.o" || die "compile hobc-rxminer gagal"
+  c++ -O2 -pthread \
+    "$rx_build/hobc-rxminer.o" \
     "$rx_build/librandomx.a" \
     $JANSSON_LIBS -lm \
-    -o "$BIN" || die "compile hobc-rxminer gagal"
+    -o "$BIN" || die "link hobc-rxminer gagal"
   chmod +x "$BIN"
   log "Miner berhasil di-build: $BIN"
   "$BIN" 2>&1 | head -5 || true
